@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0f766e"/>
+  <!-- dos burbujas de diálogo que se superponen: conversación en pareja -->
+  <path d="M110 150h190a40 40 0 0 1 40 40v90a40 40 0 0 1-40 40H190l-50 44v-44h-30a40 40 0 0 1-40-40v-90a40 40 0 0 1 40-40z" fill="#ffffff"/>
+  <path d="M232 240h170a40 40 0 0 1 40 40v80a40 40 0 0 1-40 40h-20v40l-46-40H232a40 40 0 0 1-40-40v-80a40 40 0 0 1 40-40z" fill="#e0703f"/>
+  <circle cx="262" cy="320" r="14" fill="#fff"/><circle cx="317" cy="320" r="14" fill="#fff"/><circle cx="372" cy="320" r="14" fill="#fff"/>
+</svg>
