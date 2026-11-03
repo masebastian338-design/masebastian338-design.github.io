@@ -1,0 +1,57 @@
+// =========================================================
+// REGLAS DE SEGURIDAD DE FIRESTORE
+// ---------------------------------------------------------
+// Copia TODO este archivo en: Firebase Console → Firestore →
+// pestaña "Reglas" → reemplaza lo que haya → "Publicar".
+//
+// Este archivo NO contiene correos: la lista de quién puede
+// entrar está en la colección "acceso", que creas a mano en la
+// consola. Por eso puede estar en un repositorio público.
+// =========================================================
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ¿Inició sesión con Google, su correo está verificado y
+    // existe acceso/{su correo}?
+    function permitido() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/acceso/$(request.auth.token.email));
+    }
+
+    // Lista de acceso: cada quien solo puede leer SU propio documento
+    // (para saber su nombre y su ruta). Nadie puede listarla ni escribirla
+    // desde la web; solo tú, desde la consola.
+    match /acceso/{correo} {
+      allow get: if request.auth != null
+                 && request.auth.token.email_verified == true
+                 && request.auth.token.email == correo;
+      allow list, write: if false;
+    }
+
+    // Perfiles y progreso: ambos pueden LEER los dos perfiles,
+    // pero cada quien solo ESCRIBE el suyo.
+    match /usuarios/{uid} {
+      allow read: if permitido();
+      allow write: if permitido() && request.auth.uid == uid;
+
+      match /{subcoleccion=**} {
+        allow read: if permitido();
+        allow write: if permitido() && request.auth.uid == uid;
+      }
+    }
+
+    // Datos de la pareja (retos compartidos, meta semanal): ambos leen y escriben.
+    match /pareja/{documento=**} {
+      allow read, write: if permitido();
+    }
+
+    // Contenido importado (lecciones, quizzes…): compartido por ambos.
+    match /contenido/{documento=**} {
+      allow read, write: if permitido();
+    }
+
+    // Cualquier otra ruta: prohibida.
+  }
+}
