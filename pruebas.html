@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pruebas del motor</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 16px; background: #fff; color: #1c2321; }
+    .ok { color: #2f8f4e; } .mal { color: #c0392b; font-weight: 700; }
+    li { margin: 2px 0; } h1 { font-size: 1.3rem; }
+  </style>
+</head>
+<body>
+  <!-- Abre esta página (/pruebas.html) para comprobar que la lógica
+       del motor funciona. Todo debe salir en verde. -->
+  <h1>Pruebas del motor de aprendizaje</h1>
+  <p id="resumen">Ejecutando…</p>
+  <ul id="lista"></ul>
+
+  <script type="module">
+    import * as cal from "./js/motor/calendario.js";
+    import * as srs from "./js/motor/srs.js";
+    import { calcularRacha } from "./js/motor/racha.js";
+    import * as deb from "./js/motor/debilidades.js";
+    import { armarSesion, mezclar } from "./js/motor/sesion.js";
+
+    const resultados = [];
+    function prueba(nombre, fn) {
+      try { fn(); resultados.push([nombre, true]); }
+      catch (e) { resultados.push([nombre + " → " + e.message, false]); }
+    }
+    function igual(a, b) {
+      if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`esperaba ${JSON.stringify(b)}, obtuve ${JSON.stringify(a)}`);
+    }
+
+    // ---------- Calendario ----------
+    const calendario = { ligero: 6, descanso: 0 }; // sábado ligero, domingo descanso
+    prueba("Martes 3 nov 2026 es día completo", () => igual(cal.tipoDeDia(calendario, "2026-11-03"), "completo"));
+    prueba("Sábado es ligero", () => igual(cal.tipoDeDia(calendario, "2026-11-07"), "ligero"));
+    prueba("Domingo es descanso", () => igual(cal.tipoDeDia(calendario, "2026-11-08"), "descanso"));
+    prueba("Un cambio puntual mueve el día", () =>
+      igual(cal.tipoDeDia({ ...calendario, cambios: { "2026-11-05": "descanso" } }, "2026-11-05"), "descanso"));
+    prueba("Lunes de la semana", () => igual(cal.lunesDe("2026-11-08"), "2026-11-02"));
+    prueba("Semana tiene 5+1+1", () => igual(cal.revisarSemana(calendario, "2026-11-04").cuenta, { completo: 5, ligero: 1, descanso: 1 }));
+    prueba("Viernes es el 5.º día completo", () => igual(cal.numeroDeDiaCompleto(calendario, "2026-11-06"), 5));
+    prueba("Sumar días cruza de mes", () => igual(cal.sumarDias("2026-10-30", 3), "2026-11-02"));
+
+    // ---------- SM-2 ----------
+    const hoy = "2026-11-04";
+    let e = srs.estadoNuevo("w1", hoy);
+    prueba("Nueva + Bien → 1 día", () => { e = srs.calificar(e, "bien", hoy); igual([e.intervalo, e.proxima], [1, "2026-11-05"]); });
+    prueba("2.º Bien → 3 días", () => { e = srs.calificar(e, "bien", "2026-11-05"); igual(e.intervalo, 3); });
+    prueba("3.º Bien → 3 × 2.5 = 8 días", () => { e = srs.calificar(e, "bien", "2026-11-08"); igual(e.intervalo, 8); });
+    prueba("Otra vez → vuelve hoy y baja facilidad", () => {
+      const f = srs.calificar(e, "otra", "2026-11-16"); igual([f.intervalo, f.proxima, f.facilidad, f.estado], [0, "2026-11-16", 2.3, "aprendiendo"]);
+    });
+    prueba("Facilidad nunca baja de 1.3", () => {
+      let x = srs.estadoNuevo("w2", hoy); for (let i = 0; i < 20; i++) x = srs.calificar(x, "otra", hoy); igual(x.facilidad, 1.3);
+    });
+    prueba("Llega a dominada (≥ 21 días)", () => {
+      let x = srs.estadoNuevo("w3", hoy); let f = hoy;
+      for (let i = 0; i < 4; i++) { x = srs.calificar(x, "facil", f); f = x.proxima; }
+      igual(x.estado, "dominada");
+    });
+    prueba("Pendientes: solo las que tocan", () => {
+      const est = { a: { id: "a", proxima: "2026-11-03", facilidad: 2.5 }, b: { id: "b", proxima: "2026-11-10", facilidad: 2.5 }, c: { id: "c", proxima: "2026-11-04", facilidad: 2.5 } };
+      igual(srs.pendientes(est, hoy).map(x => x.id), ["a", "c"]);
+    });
+
+    // ---------- Racha ----------
+    const hechos = fs => Object.fromEntries(fs.map(f => [f, { completado: true }]));
+    prueba("Racha simple de 3 días", () =>
+      igual(calcularRacha(hechos(["2026-11-02", "2026-11-03", "2026-11-04"]), calendario, "2026-11-04").actual, 3));
+    prueba("Hoy sin estudiar no rompe", () =>
+      igual(calcularRacha(hechos(["2026-11-02", "2026-11-03"]), calendario, "2026-11-04").actual, 2));
+    prueba("El descanso (domingo) no rompe", () =>
+      igual(calcularRacha(hechos(["2026-10-31", "2026-11-02"]), calendario, "2026-11-02").actual, 2));
+    prueba("Un día perdido usa el comodín del mes", () => {
+      const r = calcularRacha(hechos(["2026-11-02", "2026-11-04"]), calendario, "2026-11-04");
+      igual([r.actual, r.comodinesUsados, r.comodinDisponible], [2, ["2026-11-03"], false]);
+    });
+    prueba("Dos días perdidos en el mismo mes rompen", () =>
+      igual(calcularRacha(hechos(["2026-11-02", "2026-11-05", "2026-11-06"]), calendario, "2026-11-06").actual, 2));
+    prueba("Sin historial: racha 0 y comodín intacto", () => {
+      const r = calcularRacha({}, calendario, "2026-11-04"); igual([r.actual, r.comodinDisponible], [0, true]);
+    });
+
+    // ---------- Debilidades ----------
+    const resp = [
+      { etiqueta: "pasado-simple", habilidad: "gramatica", correcto: false },
+      { etiqueta: "pasado-simple", habilidad: "gramatica", correcto: false },
+      { etiqueta: "pasado-simple", habilidad: "gramatica", correcto: true },
+      { etiqueta: "articulos", habilidad: "gramatica", correcto: true },
+      { etiqueta: "articulos", habilidad: "gramatica", correcto: true },
+    ];
+    const res = deb.registrar({}, resp, hoy);
+    prueba("Registra intentos y fallos", () => igual([res["pasado-simple"].intentos, res["pasado-simple"].fallos, res["pasado-simple"].recientes], [3, 2, "110"]));
+    prueba("Detecta 'pasado-simple' como débil", () => igual(deb.debilidades(res).map(d => d.etiqueta), ["pasado-simple"]));
+    prueba("Si mejoras, deja de ser débil", () => {
+      const mejor = deb.registrar(res, Array(6).fill({ etiqueta: "pasado-simple", habilidad: "gramatica", correcto: true }), hoy);
+      igual(deb.debilidades({ ...res, ...mejor }).length, 0);
+    });
+
+    // ---------- Sesión ----------
+    const contenido = { temas: [], elementos: new Map([
+      ["L1", { id: "L1", tipo: "leccion", ruta: "B", semana: 1, orden: 1, vocabulario: ["v1"], quiz: "Q1", speaking: "S1", ejemplos: [{ en: "Hello!" }] }],
+      ["L2", { id: "L2", tipo: "leccion", ruta: "B", semana: 1, orden: 2, vocabulario: [], quiz: "Q2" }],
+      ["Q1", { id: "Q1", tipo: "quiz", ruta: "B", habilidad: "gramatica", preguntas: [{ formato: "opcion", etiquetaError: "to-be", respuesta: "am" }] }],
+      ["Q2", { id: "Q2", tipo: "quiz", ruta: "B", habilidad: "gramatica", preguntas: [{ formato: "opcion", etiquetaError: "x", respuesta: "y" }] }],
+      ["S1", { id: "S1", tipo: "speaking", ruta: "B", frasesShadowing: ["I am Xiomara."] }],
+    ]) };
+    const perfil = { rol: "B" };
+    prueba("Día completo: 5 pasos con la 1.ª lección", () => {
+      const s = armarSesion({ perfil, contenido, hoy, tipo: "completo" });
+      igual([s.leccionId, s.pasos.map(p => p.id)], ["L1", ["warmup", "leccion", "vocab", "quiz", "speaking"]]);
+    });
+    prueba("Con L1 hecha, sigue L2 y refuerza 'to-be' si es débil", () => {
+      const resumenes = deb.registrar({}, [{ etiqueta: "to-be", correcto: false }, { etiqueta: "to-be", correcto: false }], hoy);
+      const s = armarSesion({ perfil, contenido, hoy, tipo: "completo", completados: { L1: {}, Q1: {} }, resumenes });
+      const quiz = s.pasos.find(p => p.id === "quiz");
+      igual([s.leccionId, quiz.preguntas.length, quiz.preguntas[1].refuerzo], ["L2", 2, true]);
+    });
+    prueba("Día ligero: repaso + shadowing", () =>
+      igual(armarSesion({ perfil, contenido, hoy, tipo: "ligero", completados: { L1: {} } }).pasos.map(p => p.id), ["warmup", "shadowing"]));
+    prueba("Mezcla estable con la misma semilla", () => igual(mezclar([1, 2, 3, 4, 5], "x"), mezclar([1, 2, 3, 4, 5], "x")));
+
+    // ---------- Mostrar ----------
+    const malos = resultados.filter(r => !r[1]).length;
+    document.getElementById("resumen").innerHTML = malos
+      ? `<span class="mal">${malos} prueba(s) fallaron de ${resultados.length}</span>`
+      : `<span class="ok">✓ Las ${resultados.length} pruebas pasaron</span>`;
+    document.getElementById("lista").innerHTML = resultados
+      .map(([n, ok]) => `<li class="${ok ? "ok" : "mal"}">${ok ? "✓" : "✗"} ${n}</li>`).join("");
+  </script>
+</body>
+</html>

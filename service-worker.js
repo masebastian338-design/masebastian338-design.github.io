@@ -11,7 +11,7 @@
 //    propia caché offline).
 // =========================================================
 
-const CACHE = "together-v1";
+const CACHE = "together-v2"; // súbelo (v3, v4…) si agregas archivos nuevos a BASICOS
 
 // Archivos básicos que se guardan al instalar
 const BASICOS = [
@@ -19,20 +19,44 @@ const BASICOS = [
   "./index.html",
   "./manifest.json",
   "./css/estilos.css",
-  "./js/app.js",
-  "./js/config.js",
-  "./js/firebase.js",
-  "./js/auth.js",
-  "./js/i18n.js",
-  "./js/datos/perfiles.js",
-  "./js/ui/componentes.js",
-  "./js/ui/voz.js",
-  "./js/paginas/inicio.js",
-  "./js/paginas/perfil.js",
-  "./js/paginas/pareja.js",
-  "./js/paginas/mas.js",
   "./icons/icon.svg",
   "./icons/icon-192.png",
+  "./js/app.js",
+  "./js/auth.js",
+  "./js/config.js",
+  "./js/firebase.js",
+  "./js/i18n.js",
+  "./js/ui/componentes.js",
+  "./js/ui/ejercicios.js",
+  "./js/ui/leccion.js",
+  "./js/ui/speaking.js",
+  "./js/ui/tarjetas.js",
+  "./js/ui/voz.js",
+  "./js/datos/almacen.js",
+  "./js/datos/contenido.js",
+  "./js/datos/grabaciones.js",
+  "./js/datos/perfiles.js",
+  "./js/datos/progreso.js",
+  "./js/motor/calendario.js",
+  "./js/motor/debilidades.js",
+  "./js/motor/niveles.js",
+  "./js/motor/racha.js",
+  "./js/motor/sesion.js",
+  "./js/motor/srs.js",
+  "./js/paginas/calendario.js",
+  "./js/paginas/hoy.js",
+  "./js/paginas/inicio.js",
+  "./js/paginas/mas.js",
+  "./js/paginas/pareja.js",
+  "./js/paginas/perfil.js",
+  "./js/paginas/quizzes.js",
+  "./js/paginas/ruta.js",
+  "./js/paginas/speaking.js",
+  "./js/paginas/vocabulario.js",
+  "./contenido/indice.json",
+  "./contenido/temas.json",
+  "./contenido/ruta-B/semana-1.json",
+  "./contenido/ruta-A/semana-1.json",
 ];
 
 self.addEventListener("install", (ev) => {
