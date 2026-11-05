@@ -35,15 +35,27 @@ export function elegirVoz(voces, ajustes = {}) {
       || null;
 }
 
-// Lee un texto en voz alta con los ajustes del usuario
-export async function hablar(texto, ajustes = {}) {
-  if (!hayVoz) return;
+// Lee un texto en voz alta con los ajustes del usuario.
+// Devuelve una promesa que se cumple cuando termina de hablar.
+// opciones.voz2 = true usa una segunda voz (para diálogos de 2 personas).
+export async function hablar(texto, ajustes = {}, opciones = {}) {
+  if (!hayVoz || !texto) return;
   const voces = await obtenerVoces();
-  speechSynthesis.cancel(); // detiene lo que estuviera sonando
+  if (!opciones.encolar) speechSynthesis.cancel(); // detiene lo que estuviera sonando
   const frase = new SpeechSynthesisUtterance(texto);
-  const voz = elegirVoz(voces, ajustes);
+  let voz = elegirVoz(voces, ajustes);
+  if (opciones.voz2) {
+    const otras = vocesDeAcento(voces, ajustes.acento || "en-US").filter(v => v !== voz);
+    voz = otras[0] || voz;
+  }
   if (voz) frase.voice = voz;
   frase.lang = voz?.lang || ajustes.acento || "en-US";
   frase.rate = ajustes.velocidadVoz || 1;
-  speechSynthesis.speak(frase);
+  return new Promise(resolve => {
+    frase.onend = resolve;
+    frase.onerror = resolve;
+    // Seguridad: si el navegador nunca avisa el final, seguimos igual
+    setTimeout(resolve, 2000 + texto.length * 150);
+    speechSynthesis.speak(frase);
+  });
 }

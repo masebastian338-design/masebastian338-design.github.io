@@ -10,6 +10,25 @@ export function esc(texto) {
     .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
+// Texto con formato mínimo: **negrita** y *cursiva* (siempre escapado antes)
+export function md(texto) {
+  return esc(texto)
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+    .replace(/\*(.+?)\*/g, "<i>$1</i>");
+}
+
+// Botón 🔊 que lee un texto en inglés. Lo maneja un solo "escuchador"
+// global en app.js (busca data-oir), así funciona en cualquier página.
+export function botonOir(texto, etiqueta = "🔊") {
+  return `<button type="button" class="oir" data-oir="${esc(texto)}" aria-label="Listen">${etiqueta}</button>`;
+}
+
+// Etiqueta de error legible: "pasado-irregular" → "pasado irregular"
+export function nombreEtiqueta(etq) { return String(etq || "").replaceAll("-", " "); }
+
+// Formatea minutos a partir de segundos
+export function minutos(seg) { return Math.round((Number(seg) || 0) / 60); }
+
 // Muestra un mensaje flotante unos segundos
 export function toast(mensaje, ms = 2500) {
   const el = document.createElement("div");
