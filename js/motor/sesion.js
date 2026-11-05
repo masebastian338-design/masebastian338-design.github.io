@@ -44,23 +44,27 @@ export function frasesDeLeccion(contenido, leccion, max = 6) {
 }
 
 // Preguntas de refuerzo: de quizzes ya vistos, con etiquetas débiles
-export function preguntasDeRefuerzo(contenido, rol, completados, resumenes, excluirQuiz, n, semilla) {
+export function preguntasDeRefuerzo(contenido, rol, completados, resumenes, excluirQuiz, n, semilla, habilidadesExtra = []) {
   const debiles = debilidades(resumenes).map(d => d.etiqueta);
-  if (!debiles.length) return [];
+  if (!debiles.length && !habilidadesExtra.length) return [];
   const candidatas = [];
   for (const q of delTipo(contenido, "quiz", rol)) {
     if (q.id === excluirQuiz || !completados[q.id]) continue;
     (q.preguntas || []).forEach((p, i) => {
-      if (debiles.includes(p.etiquetaError)) candidatas.push({ ...p, quizId: q.id, idx: i, habilidad: p.habilidad || q.habilidad, refuerzo: true });
+      const hab = p.habilidad || (p.formato === "escuchar" ? "listening" : q.habilidad);
+      if (debiles.includes(p.etiquetaError) || habilidadesExtra.includes(hab)) candidatas.push({ ...p, quizId: q.id, idx: i, habilidad: hab, refuerzo: true });
     });
   }
   // Ordena por gravedad de la debilidad y mezcla de forma estable por fecha
   return mezclar(candidatas, semilla)
-    .sort((a, b) => debiles.indexOf(a.etiquetaError) - debiles.indexOf(b.etiquetaError))
+    // Primero las etiquetas débiles (en orden de gravedad), luego las de habilidades en refuerzo
+    .sort((a, b) => orden(debiles, a.etiquetaError) - orden(debiles, b.etiquetaError))
     .slice(0, n);
 }
 
-export function armarSesion({ perfil, contenido, completados = {}, vocab = {}, resumenes = {}, hoy, tipo }) {
+// evaluacion: null | { mensual } → el quiz se sustituye por la evaluación semanal
+// refuerzo:   null | { habilidades } → semana de refuerzo: más preguntas de repaso
+export function armarSesion({ perfil, contenido, completados = {}, vocab = {}, resumenes = {}, hoy, tipo, evaluacion = null, refuerzo = null }) {
   const rol = perfil.rol;
   const debiles = debilidades(resumenes);
 
@@ -83,8 +87,9 @@ export function armarSesion({ perfil, contenido, completados = {}, vocab = {}, r
   const quiz = leccion?.quiz ? obtener(contenido, leccion.quiz) : null;
   const preguntasQuiz = (quiz?.preguntas || []).map((p, i) =>
     ({ ...p, quizId: quiz.id, idx: i, habilidad: p.habilidad || quiz.habilidad }));
-  const refuerzo = preguntasDeRefuerzo(contenido, rol, completados, resumenes, quiz?.id,
-    leccion ? PREGUNTAS_REFUERZO : 6, hoy);
+  const nRefuerzo = refuerzo ? 5 : leccion ? PREGUNTAS_REFUERZO : 6;
+  const preguntasRefuerzo = preguntasDeRefuerzo(contenido, rol, completados, resumenes, quiz?.id,
+    nRefuerzo, hoy, refuerzo?.habilidades || []);
 
   const pasos = [
     { id: "warmup", min: 3, tarjetas: pendientes(vocab, hoy, MAX_REPASO_COMPLETO).map(e => e.id) },
@@ -93,13 +98,16 @@ export function armarSesion({ perfil, contenido, completados = {}, vocab = {}, r
     pasos.push({ id: "leccion", min: 7, leccionId: leccion.id });
     pasos.push({ id: "vocab", min: 4, vocabIds: leccion.vocabulario || [] });
   }
-  if (preguntasQuiz.length || refuerzo.length) {
-    pasos.push({ id: "quiz", min: 3, quizId: quiz?.id || null, preguntas: [...preguntasQuiz, ...refuerzo] });
+  if (evaluacion) {
+    pasos.push({ id: "evaluacion", min: evaluacion.mensual ? 13 : 8, mensual: !!evaluacion.mensual });
+  } else if (preguntasQuiz.length || preguntasRefuerzo.length) {
+    pasos.push({ id: "quiz", min: 3, quizId: quiz?.id || null, preguntas: [...preguntasQuiz, ...preguntasRefuerzo] });
   }
   if (leccion?.speaking) pasos.push({ id: "speaking", min: 3, speakingId: leccion.speaking });
 
   return {
     fecha: hoy, tipo, leccionId: leccion?.id || null, debilidades: debiles, pasos,
+    refuerzo: refuerzo?.habilidades || null,
     bloques: [
       { id: "shadowing", min: 10, frases: frasesDeLeccion(contenido, leccion || ultimaLeccion(contenido, rol, completados), 8) },
       { id: "reto", min: 10, fase: 6 },
@@ -107,6 +115,8 @@ export function armarSesion({ perfil, contenido, completados = {}, vocab = {}, r
     ],
   };
 }
+
+const orden = (lista, x) => { const i = lista.indexOf(x); return i < 0 ? lista.length : i; };
 
 // Mezcla estable: con la misma semilla (la fecha) da el mismo orden,
 // así recargar la página no cambia las preguntas del día.
