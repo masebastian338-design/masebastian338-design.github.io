@@ -27,11 +27,14 @@ export async function iniciarFirebase() {
       localCache: fsMod.persistentLocalCache({
         tabManager: fsMod.persistentMultipleTabManager(),
       }),
+      // Si un dato viene vacío (undefined), se omite en vez de dar error
+      ignoreUndefinedProperties: true,
     });
   } catch (e) {
     // Si el navegador no permite la caché (p. ej. modo privado), usamos memoria.
     console.warn("Caché offline no disponible:", e);
-    db = fsMod.getFirestore(app);
+    try { db = fsMod.initializeFirestore(app, { ignoreUndefinedProperties: true }); }
+    catch { db = fsMod.getFirestore(app); }
   }
 
   const auth = authMod.getAuth(app);

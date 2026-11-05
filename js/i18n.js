@@ -23,6 +23,11 @@ export function establecerIdioma(perfil) {
 
 export function idiomaActual() { return idioma; }
 
+// Texto bilingüe "en línea": tx("Hola", "Hi") → según el idioma actual.
+// Se usa en páginas con mucho texto propio (evaluaciones) para no
+// llenar el diccionario de abajo con cientos de claves.
+export function tx(es, en) { return idioma === "en" ? en : es; }
+
 // ---------------------------------------------------------
 // INMERSIÓN PROGRESIVA: ¿cómo mostrar el español en el contenido?
 //  - Estudiante B: traducciones visibles hasta A2; desde A2, "toca para ver".
@@ -109,7 +114,7 @@ const TEXTOS = {
   "inicio.metaPareja":{ es: "Meta de pareja esta semana", en: "Couple goal this week" },
   "inicio.retos":     { es: "{n} de 3 retos",         en: "{n} of 3 challenges" },
   "inicio.nivel":     { es: "Tu nivel",               en: "Your level" },
-  "inicio.sinDiag":   { es: "Aún sin diagnóstico. Lo harás en la Fase 4.", en: "No placement test yet (coming in Phase 4)." },
+  "inicio.sinDiag":   { es: "Aún sin diagnóstico: este nivel es una estimación.", en: "No placement test yet: this level is an estimate." },
   "inicio.parejaDe":  { es: "Tu pareja",              en: "Your partner" },
   "inicio.sinPareja": { es: "Tu pareja aún no ha entrado.", en: "Your partner hasn't signed in yet." },
 
@@ -189,6 +194,10 @@ const TEXTOS = {
   "paso.quiz":        { es: "Quiz rápido",            en: "Quick quiz" },
   "paso.speaking":    { es: "Speaking challenge",     en: "Speaking challenge" },
   "paso.shadowing":   { es: "Shadowing",              en: "Shadowing" },
+  "paso.evaluacion":  { es: "Evaluación semanal",     en: "Weekly assessment" },
+  "hoy.modoRefuerzo": { es: "Semana de refuerzo",     en: "Reinforcement week" },
+  "inicio.hacerDiag": { es: "Hacer diagnóstico (15–20 min)", en: "Take the placement test (15–20 min)" },
+  "inicio.verNiveles": { es: "Ver mis niveles",       en: "See my levels" },
   "hoy.tarjetas":     { es: "{n} tarjetas",           en: "{n} cards" },
   "hoy.reforzamos":   { es: "Hoy reforzamos",         en: "Today we reinforce" },
   "hoy.sinLecciones": { es: "Terminaste todas las lecciones disponibles. Agrega contenido nuevo (Fase 5) — mientras tanto, la sesión repasa tus debilidades.", en: "You finished all available lessons. Add new content (Phase 5) — meanwhile, the session reviews your weak points." },

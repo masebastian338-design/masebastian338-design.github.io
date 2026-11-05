@@ -24,6 +24,7 @@ import * as pQuizzes from "./paginas/quizzes.js";
 import * as pSpeaking from "./paginas/speaking.js";
 import * as pCalendario from "./paginas/calendario.js";
 import * as pRuta from "./paginas/ruta.js";
+import * as pEvaluaciones from "./paginas/evaluaciones.js";
 import { hablar } from "./ui/voz.js";
 import { sumarSegundos } from "./datos/progreso.js";
 import { borrarDatosDemo } from "./datos/almacen.js";
@@ -45,6 +46,7 @@ const PAGINAS = {
   speaking: pSpeaking,
   calendario: pCalendario,
   ruta: pRuta,
+  evaluaciones: pEvaluaciones,
 };
 
 // Barra inferior: las 5 secciones principales
@@ -191,7 +193,7 @@ document.addEventListener("click", (ev) => {
 // está visible y tocaste/escribiste algo en los últimos 2 minutos
 // (así no cuenta si dejas el celular abierto). Se guarda cada minuto.
 // ---------------------------------------------------------
-const RUTAS_ESTUDIO = new Set(["hoy", "vocabulario", "quizzes", "speaking", "ruta"]);
+const RUTAS_ESTUDIO = new Set(["hoy", "vocabulario", "quizzes", "speaking", "ruta", "evaluaciones"]);
 let ultimaActividad = Date.now();
 let segundosPendientes = 0;
 for (const ev of ["pointerdown", "keydown", "touchstart", "scroll"]) {
