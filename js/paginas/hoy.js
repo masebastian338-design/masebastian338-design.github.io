@@ -13,13 +13,17 @@ import { esc, toast, nombreEtiqueta } from "../ui/componentes.js";
 import { cargarContenido, obtener } from "../datos/contenido.js";
 import * as prog from "../datos/progreso.js";
 import { armarSesion } from "../motor/sesion.js";
-import { tipoDeDia, fechaISO } from "../motor/calendario.js";
+import { tipoDeDia, fechaISO, numeroDeDiaCompleto } from "../motor/calendario.js";
+import { esSemanaMensual } from "../motor/evaluacion.js";
+import * as datosEval from "../datos/evaluaciones.js";
+import { ejecutarEvaluacionSemanal, nombreHab } from "../ui/evaluacion.js";
+import { contextoEvaluacion } from "./evaluaciones.js";
 import { ejecutarRepaso, ejecutarPresentacion } from "../ui/tarjetas.js";
 import { ejecutarQuiz, htmlCorrecciones, aRespuestas } from "../ui/ejercicios.js";
 import { ejecutarShadowing, ejecutarSpeaking, speakingARespuestas, shadowingARespuestas } from "../ui/speaking.js";
 import { htmlLeccion, montarLeccion } from "../ui/leccion.js";
 
-const ICONOS = { warmup: "🔁", leccion: "📖", vocab: "🃏", quiz: "✅", speaking: "🎙️", shadowing: "🗣️", reto: "🤝", video: "🎬" };
+const ICONOS = { evaluacion: "📝", warmup: "🔁", leccion: "📖", vocab: "🃏", quiz: "✅", speaking: "🎙️", shadowing: "🗣️", reto: "🤝", video: "🎬" };
 
 export function render() {
   return `<div id="hoy"><p class="suave">${t("cargando")}</p></div>`;
@@ -34,15 +38,22 @@ export async function montar(raiz, estado) {
   // ---------- Datos ----------
   let datos;
   async function cargar() {
-    const [contenido, completados, vocab, resumenes, dia] = await Promise.all([
+    const [contenido, completados, vocab, resumenes, dia, evalSemana] = await Promise.all([
       cargarContenido(), prog.completados(uid), prog.vocabulario(uid), prog.errores(uid), prog.dia(uid, hoy),
+      datosEval.evaluacionDeSemana(uid, hoy),
     ]);
     const diaDoc = dia || {};
     const tipo = diaDoc.tipoForzado || tipoDeDia(perfil.calendario, hoy);
     // Si hoy ya empezaste una lección, se mantiene aunque cambie el progreso
     const compSinHoy = { ...completados };
     if (diaDoc.leccionId) delete compSinHoy[diaDoc.leccionId];
-    const sesion = armarSesion({ perfil, contenido, completados: compSinHoy, vocab, resumenes, hoy, tipo });
+    // Evaluación semanal: desde el 5.º día completo, si aún no se hizo esta semana
+    // (o si se hizo hoy dentro de esta sesión, para mostrarla como paso hecho)
+    const tocaEvaluar = tipo === "completo" && numeroDeDiaCompleto(perfil.calendario, hoy) >= 5 && !evalSemana;
+    const evaluacion = tocaEvaluar || diaDoc.pasos?.evaluacion
+      ? { mensual: esSemanaMensual(datosEval.semanaActual(perfil)) } : null;
+    const refuerzo = datosEval.refuerzoActivo(perfil, hoy);
+    const sesion = armarSesion({ perfil, contenido, completados: compSinHoy, vocab, resumenes, hoy, tipo, evaluacion, refuerzo });
     datos = { contenido, completados, vocab, resumenes, dia: diaDoc, tipo, sesion };
   }
 
@@ -83,6 +94,7 @@ export async function montar(raiz, estado) {
     caja.innerHTML = `
       <h1>${t("sec.hoy")}</h1>
       <p class="suave">${t("dia." + tipo)}${leccion ? ` · ${esc(idiomaActual() === "es" && leccion.tituloES ? leccion.tituloES : leccion.titulo)}` : ""}</p>
+      ${sesion.refuerzo ? `<div class="aviso">💪 ${t("hoy.modoRefuerzo")}: ${sesion.refuerzo.map(nombreHab).join(", ")}</div>` : ""}
       ${debiles.length ? `<div class="tarjeta pareja"><div class="etiqueta">🎯 ${t("hoy.reforzamos")}</div>
         ${debiles.map(d => `<span class="chip">${esc(nombreEtiqueta(d.etiqueta))}</span>`).join(" ")}</div>` : ""}
       ${!leccion && tipo === "completo" ? `<div class="aviso">${t("hoy.sinLecciones")}</div>` : ""}
@@ -136,6 +148,10 @@ export async function montar(raiz, estado) {
         cambios.quiz = { bien, total: res.length };
         cambios.correcciones = res.filter(r => !r.correcto)
           .map(r => ({ quizId: r.p.quizId, idx: r.p.idx, respuesta: r.respuesta ?? null }));
+      } else if (paso.id === "evaluacion") {
+        const ctx = await contextoEvaluacion(perfil, sesion.leccionId);
+        const doc = await ejecutarEvaluacionSemanal(act, perfil, ctx);
+        cambios.evaluacion = { bien: doc.bien, total: doc.total, mensual: doc.mensual };
       } else if (paso.id === "speaking") {
         const sp = obtener(contenido, paso.speakingId);
         const r = await ejecutarSpeaking(act, sp, perfil);
@@ -209,6 +225,8 @@ export async function montar(raiz, estado) {
         <p>🔥 ${t("final.racha", { n: perfil.racha?.actual ?? 0 })}</p>
       </div>
       ${totalQuiz ? `<div class="tarjeta">${htmlCorrecciones([...relleno, ...resultados], perfil)}</div>` : ""}
+      ${dia.evaluacion ? `<a class="tarjeta fila entre" href="#/evaluaciones?ver=semanal" style="text-decoration:none;color:inherit">
+        <b>📝 ${t("paso.evaluacion")}: ${dia.evaluacion.bien}/${dia.evaluacion.total}</b><span>→</span></a>` : ""}
       ${consejoSpeaking ? `<div class="tarjeta"><div class="etiqueta">🎙️ Speaking</div><ul>${consejoSpeaking}</ul></div>` : ""}
       ${sesion.bloques.length ? `<h3>${t("final.bloques")}</h3>
         <div class="menu-grid">${sesion.bloques.map(b => `

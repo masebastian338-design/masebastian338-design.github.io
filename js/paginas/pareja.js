@@ -3,6 +3,7 @@
 // =========================================================
 import { t } from "../i18n.js";
 import { esc, avatar, tarjetaNiveles } from "../ui/componentes.js";
+import { nivelGeneral } from "../motor/niveles.js";
 
 export function render({ pareja }) {
   if (!pareja) {
@@ -20,7 +21,7 @@ export function render({ pareja }) {
 
     <div class="tarjeta">
       <div class="etiqueta">${t("inicio.nivel")}</div>
-      <h2>${esc(pareja.nivelEstimado || "—")}</h2>
+      <h2>${esc(nivelGeneral(pareja))}</h2>
     </div>
 
     <div class="tarjeta">

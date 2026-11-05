@@ -6,11 +6,14 @@ import { esc, avatar, minutos } from "../ui/componentes.js";
 import { tipoDeDia, fechaISO } from "../motor/calendario.js";
 import { pendientes } from "../motor/srs.js";
 import * as prog from "../datos/progreso.js";
+import { nivelGeneral } from "../motor/niveles.js";
 
 export function render({ perfil, pareja }) {
   const tipo = tipoDeDia(perfil.calendario, fechaISO());
   const retosHechos = 0; // se conecta en la Fase 6
-  const nivel = perfil.niveles?.speaking ? "" : `<p class="suave pequeno">${t("inicio.sinDiag")}</p>`;
+  const nivel = perfil.diagnostico
+    ? `<a class="boton secundario ancho" href="#/evaluaciones">${t("inicio.verNiveles")}</a>`
+    : `<p class="suave pequeno">${t("inicio.sinDiag")}</p><a class="boton ancho" href="#/evaluaciones?ver=diagnostico">${t("inicio.hacerDiag")}</a>`;
 
   return `
     <div class="encabezado">
@@ -44,7 +47,7 @@ export function render({ perfil, pareja }) {
 
     <div class="tarjeta">
       <div class="etiqueta">${t("inicio.nivel")}</div>
-      <h2>${esc(perfil.nivelEstimado || "—")}</h2>
+      <h2>${esc(nivelGeneral(perfil))}</h2>
       ${nivel}
     </div>
 
