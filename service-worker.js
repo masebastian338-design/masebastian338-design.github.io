@@ -11,7 +11,7 @@
 //    propia caché offline).
 // =========================================================
 
-const CACHE = "together-v2"; // súbelo (v3, v4…) si agregas archivos nuevos a BASICOS
+const CACHE = "together-v3"; // súbelo (v3, v4…) si agregas archivos nuevos a BASICOS
 
 // Archivos básicos que se guardan al instalar
 const BASICOS = [
@@ -28,22 +28,27 @@ const BASICOS = [
   "./js/i18n.js",
   "./js/ui/componentes.js",
   "./js/ui/ejercicios.js",
+  "./js/ui/evaluacion.js",
   "./js/ui/leccion.js",
   "./js/ui/speaking.js",
   "./js/ui/tarjetas.js",
   "./js/ui/voz.js",
   "./js/datos/almacen.js",
   "./js/datos/contenido.js",
+  "./js/datos/evaluaciones.js",
   "./js/datos/grabaciones.js",
   "./js/datos/perfiles.js",
   "./js/datos/progreso.js",
   "./js/motor/calendario.js",
   "./js/motor/debilidades.js",
+  "./js/motor/diagnostico.js",
+  "./js/motor/evaluacion.js",
   "./js/motor/niveles.js",
   "./js/motor/racha.js",
   "./js/motor/sesion.js",
   "./js/motor/srs.js",
   "./js/paginas/calendario.js",
+  "./js/paginas/evaluaciones.js",
   "./js/paginas/hoy.js",
   "./js/paginas/inicio.js",
   "./js/paginas/mas.js",
@@ -53,10 +58,13 @@ const BASICOS = [
   "./js/paginas/ruta.js",
   "./js/paginas/speaking.js",
   "./js/paginas/vocabulario.js",
+  "./contenido/diagnostico.json",
   "./contenido/indice.json",
   "./contenido/temas.json",
   "./contenido/ruta-B/semana-1.json",
   "./contenido/ruta-A/semana-1.json",
+  "./prompts/diagnostico-speaking.md",
+  "./prompts/evaluacion-mensual-speaking.md",
 ];
 
 self.addEventListener("install", (ev) => {

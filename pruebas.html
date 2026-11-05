@@ -23,6 +23,9 @@
     import { calcularRacha } from "./js/motor/racha.js";
     import * as deb from "./js/motor/debilidades.js";
     import { armarSesion, mezclar } from "./js/motor/sesion.js";
+    import * as niv from "./js/motor/niveles.js";
+    import * as diag from "./js/motor/diagnostico.js";
+    import * as ev from "./js/motor/evaluacion.js";
 
     const resultados = [];
     function prueba(nombre, fn) {
@@ -123,6 +126,81 @@
     prueba("Día ligero: repaso + shadowing", () =>
       igual(armarSesion({ perfil, contenido, hoy, tipo: "ligero", completados: { L1: {} } }).pasos.map(p => p.id), ["warmup", "shadowing"]));
     prueba("Mezcla estable con la misma semilla", () => igual(mezclar([1, 2, 3, 4, 5], "x"), mezclar([1, 2, 3, 4, 5], "x")));
+
+    // ---------- Niveles (Fase 4) ----------
+    prueba("rango/desdeRango ida y vuelta", () => igual(["A0", "A1.1", "A2.3", "B1.1", "C2.3"].map(n => niv.desdeRango(niv.rango(n))), ["A0", "A1.1", "A2.3", "B1.1", "C2.3"]));
+    prueba("Nivel ponderado: speaking y listening pesan más", () =>
+      igual(niv.nivelPonderado({ speaking: "B1.1", listening: "B1.1", gramatica: "A1.1", lectura: "A1.1" }), "A2.2"));
+    const pA = { rol: "A", niveles: { gramatica: "A2.1", listening: "A2.3" }, nivelEstimado: "A2" };
+    prueba("1 semana ≥ 80 % no sube todavía", () => igual(niv.aplicarEvaluacion(pA, { gramatica: 0.9 }).cambios, []));
+    prueba("2 semanas seguidas ≥ 80 % → sube subnivel", () => {
+      const r1 = niv.aplicarEvaluacion(pA, { gramatica: 0.9 });
+      const r2 = niv.aplicarEvaluacion({ ...pA, ...r1 }, { gramatica: 0.8 });
+      igual([r2.niveles.gramatica, r2.cambios[0].tipo], ["A2.2", "subnivel"]);
+    });
+    prueba("Una semana mala reinicia el conteo", () => {
+      const r1 = niv.aplicarEvaluacion(pA, { gramatica: 0.9 });
+      const r2 = niv.aplicarEvaluacion({ ...pA, ...r1 }, { gramatica: 0.7 });
+      const r3 = niv.aplicarEvaluacion({ ...pA, ...r2 }, { gramatica: 0.9 });
+      igual(r3.niveles.gramatica, "A2.1");
+    });
+    prueba("A2.3 → B1 bloqueado fuera de la evaluación mensual", () => {
+      const r1 = niv.aplicarEvaluacion(pA, { listening: 0.9 });
+      const r2 = niv.aplicarEvaluacion({ ...pA, ...r1 }, { listening: 0.9 });
+      igual([r2.niveles.listening, r2.cambios[0].tipo], ["A2.3", "listo"]);
+    });
+    prueba("Mensual + speaking aprobado → sube a B1.1", () => {
+      const r1 = niv.aplicarEvaluacion(pA, { listening: 0.9 });
+      const r2 = niv.aplicarEvaluacion({ ...pA, ...r1 }, { listening: 0.9 }, { mensual: true, speakingNivel: "A2.3" });
+      igual([r2.niveles.listening, r2.cambios[0].tipo], ["B1.1", "nivel"]);
+    });
+    prueba("Mensual pero speaking NO aprobado → no sube", () => {
+      const r1 = niv.aplicarEvaluacion(pA, { listening: 0.9 });
+      const r2 = niv.aplicarEvaluacion({ ...pA, ...r1 }, { listening: 0.9 }, { mensual: true, speakingNivel: "A2.1" });
+      igual(r2.niveles.listening, "A2.3");
+    });
+    prueba("< 60 % dos veces → refuerzo, sin bajar", () => {
+      const r1 = niv.aplicarEvaluacion(pA, { gramatica: 0.4 });
+      const r2 = niv.aplicarEvaluacion({ ...pA, ...r1 }, { gramatica: 0.5 });
+      igual([r2.refuerzo, r2.niveles.gramatica], [["gramatica"], "A2.1"]);
+    });
+
+    // ---------- Diagnóstico adaptativo ----------
+    const banco = [];
+    for (const h of ["vocabulario"]) for (const n of diag.NIVELES_DIAG) for (let k = 0; k < 3; k++) banco.push({ id: `${h}-${n}-${k}`, habilidad: h, nivel: n });
+    function simular(aciertaHasta /* índice de nivel que ya no acierta */, parcialEnFallo = 0) {
+      let s = diag.estadoInicial(["vocabulario"]); let p; let aciertosFallo = 0;
+      while ((p = diag.siguientePregunta(s, banco))) {
+        const iNivel = diag.NIVELES_DIAG.indexOf(p.nivel);
+        let ok = iNivel < aciertaHasta;
+        if (iNivel === aciertaHasta && aciertosFallo < parcialEnFallo) { ok = true; aciertosFallo++; }
+        s = diag.responder(s, p, ok, banco);
+      }
+      return diag.resultado(s).vocabulario;
+    }
+    prueba("Diagnóstico: aprueba A1, A2 y falla B1 sin aciertos → A2.1", () => igual(simular(2, 0), "A2.1"));
+    prueba("Diagnóstico: aprueba A1, A2 y 1 acierto en B1 → A2.2", () => igual(simular(2, 1), "A2.2"));
+    prueba("Diagnóstico: no aprueba A1 → A0", () => igual(simular(0, 0), "A0"));
+    prueba("Diagnóstico: aprueba todo → C1.3", () => igual(simular(9), "C1.3"));
+    prueba("Diagnóstico: máx. 3 preguntas por nivel", () => {
+      let s = diag.estadoInicial(["vocabulario"]); let p; let n = 0;
+      while ((p = diag.siguientePregunta(s, banco))) { s = diag.responder(s, p, n % 2 === 0, banco); n++; }
+      if (n > 15) throw new Error("demasiadas preguntas: " + n);
+    });
+
+    // ---------- Evaluación semanal ----------
+    prueba("Semana del programa y semana mensual", () =>
+      igual([ev.semanaPrograma("2026-11-03", "2026-11-04"), ev.semanaPrograma("2026-11-03", "2026-11-25"), ev.esSemanaMensual(4)], [1, 4, true]));
+    prueba("Puntajes por habilidad", () => igual(ev.puntajes([
+      { p: { habilidad: "gramatica" }, correcto: true }, { p: { habilidad: "gramatica" }, correcto: false },
+      { p: { habilidad: "listening" }, correcto: true }]), { gramatica: 0.5, listening: 1 }));
+    prueba("Puntaje de speaking (rúbrica)", () =>
+      igual(ev.puntajeSpeaking({ fluidez: 3, respondio: true, expresionesUsadas: ["a"], expresionesTotal: 2 }), 0.88));
+
+    prueba("Lee el resultado pegado de Claude", () => {
+      const r = ev.leerResultadoClaude("**NIVEL:** A2.2\nFLUIDEZ: 3/5\nPronunciación: 4\nAPRUEBA NIVEL ACTUAL: Sí\nERRORES FRECUENTES: \"I have 25 years\" → \"I'm 25\"; falta de -s en he/she\nFORTALEZAS: buen vocabulario\nRECOMENDACIONES: shadowing diario; leer en voz alta");
+      igual([r.nivel, r.fluidez, r.pronunciacion, r.aprueba, r.errores.length, r.recomendaciones.length], ["A2.2", 3, 4, true, 2, 2]);
+    });
 
     // ---------- Mostrar ----------
     const malos = resultados.filter(r => !r[1]).length;
