@@ -2,19 +2,13 @@
 // PÁGINA: INICIO
 // =========================================================
 import { t, idiomaActual } from "../i18n.js";
-import { esc, avatar } from "../ui/componentes.js";
-
-// ¿Qué tipo de día es hoy según el calendario 5 + 1 + 1 del perfil?
-export function tipoDeDia(perfil, fecha = new Date()) {
-  const dia = fecha.getDay();
-  const cal = perfil.calendario || {};
-  if (dia === cal.descanso) return "descanso";
-  if (dia === cal.ligero) return "ligero";
-  return "completo";
-}
+import { esc, avatar, minutos } from "../ui/componentes.js";
+import { tipoDeDia, fechaISO } from "../motor/calendario.js";
+import { pendientes } from "../motor/srs.js";
+import * as prog from "../datos/progreso.js";
 
 export function render({ perfil, pareja }) {
-  const tipo = tipoDeDia(perfil);
+  const tipo = tipoDeDia(perfil.calendario, fechaISO());
   const retosHechos = 0; // se conecta en la Fase 6
   const nivel = perfil.niveles?.speaking ? "" : `<p class="suave pequeno">${t("inicio.sinDiag")}</p>`;
 
@@ -27,10 +21,17 @@ export function render({ perfil, pareja }) {
       <a href="#/perfil" aria-label="${t("sec.perfil")}">${avatar(perfil)}</a>
     </div>
 
+    <div class="niveles" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px">
+      <a class="nivel" href="#/calendario"><b>🔥 ${Number(perfil.racha?.actual) || 0}</b><span>${t("inicio.racha")}</span></a>
+      <a class="nivel" href="#/calendario"><b id="min-hoy">–</b><span>${t("inicio.minHoy")}</span></a>
+      <a class="nivel" href="#/vocabulario"><b id="repasos">–</b><span>${t("inicio.repasos")}</span></a>
+    </div>
+
     <div class="tarjeta destacada">
       <div class="etiqueta">${t("inicio.hoyEs")}</div>
       <h2>${t("dia." + tipo)}</h2>
-      ${tipo !== "descanso" ? `<a class="boton ancho" href="#/hoy">${t("inicio.empezar")}</a>` : ""}
+      <p id="progreso-hoy" class="pequeno" style="margin:0 0 8px"></p>
+      ${tipo !== "descanso" ? `<a class="boton ancho" href="#/hoy" id="btn-hoy">${t("inicio.empezar")}</a>` : ""}
     </div>
 
     <div class="tarjeta pareja">
@@ -52,7 +53,29 @@ export function render({ perfil, pareja }) {
       <div>
         <div class="etiqueta">${t("inicio.parejaDe")}</div>
         <b>${pareja ? esc(pareja.nombre) : t("inicio.sinPareja")}</b>
+        ${pareja ? `<div class="suave pequeno">🔥 ${Number(pareja.racha?.actual) || 0}</div>` : ""}
       </div>
     </a>
   `;
+}
+
+// Completa los datos del día (se cargan después de dibujar)
+export async function montar(raiz, { perfil }) {
+  try {
+    const [dia, vocab] = await Promise.all([prog.dia(perfil.uid), prog.vocabulario(perfil.uid)]);
+    raiz.querySelector("#min-hoy").textContent = minutos(dia?.segundos);
+    raiz.querySelector("#repasos").textContent = pendientes(vocab, fechaISO()).length;
+    const pasos = Object.keys(dia?.pasos || {}).length;
+    const p = raiz.querySelector("#progreso-hoy");
+    const btn = raiz.querySelector("#btn-hoy");
+    if (dia?.completado) {
+      p.textContent = t("inicio.hecho");
+      if (btn) { btn.textContent = t("sec.hoy"); btn.classList.add("secundario"); }
+    } else if (pasos) {
+      p.textContent = t("inicio.progresoHoy", { n: pasos, total: dia.tipo === "ligero" ? 2 : 5 });
+      if (btn) btn.textContent = t("continuar");
+    }
+  } catch (e) {
+    console.warn("Inicio:", e);
+  }
 }
