@@ -23,6 +23,31 @@ export function establecerIdioma(perfil) {
 
 export function idiomaActual() { return idioma; }
 
+// ---------------------------------------------------------
+// INMERSIÓN PROGRESIVA: ¿cómo mostrar el español en el contenido?
+//  - Estudiante B: traducciones visibles hasta A2; desde A2, "toca para ver".
+//  - Estudiante A: resumen en español visible hasta B1; desde B1, oculto.
+// Devuelve "visible" | "tocar" | "oculta".
+// ---------------------------------------------------------
+import { alMenos, nivelGeneral } from "./motor/niveles.js";
+
+// clase: "ejemplo" (traducción de frases) o "resumen" (resumen de gramática)
+export function modoTraduccion(perfil, clase = "ejemplo") {
+  const nivel = nivelGeneral(perfil);
+  if (perfil?.rol === "B") return alMenos(nivel, "A2") ? "tocar" : "visible";
+  if (clase === "resumen") return alMenos(nivel, "B1") ? "oculta" : "visible";
+  return "tocar";
+}
+
+// Muestra un texto en español según el modo de inmersión
+export function traduccionHTML(textoES, perfil, escapar, clase = "ejemplo") {
+  if (!textoES) return "";
+  const modo = modoTraduccion(perfil, clase);
+  if (modo === "oculta") return "";
+  if (modo === "visible") return `<span class="trad">${escapar(textoES)}</span>`;
+  return `<details class="trad"><summary>${t("verTraduccion")}</summary>${escapar(textoES)}</details>`;
+}
+
 // t("clave") devuelve el texto en el idioma actual.
 // Si una clave no existe, devuelve la clave (así se nota el olvido).
 export function t(clave, variables = {}) {
@@ -122,4 +147,149 @@ const TEXTOS = {
   "volver":           { es: "← Volver",               en: "← Back" },
   "sinConexion":      { es: "Sin conexión: los cambios se guardarán al reconectar.", en: "Offline: changes will sync when you reconnect." },
   "demo":             { es: "MODO DEMO",              en: "DEMO MODE" },
+
+  // ===== Fase 3: motor de aprendizaje =====
+  // Generales
+  "cargando":         { es: "Cargando…",              en: "Loading…" },
+  "continuar":        { es: "Continuar",              en: "Continue" },
+  "siguiente":        { es: "Siguiente",              en: "Next" },
+  "terminar":         { es: "Terminar",               en: "Finish" },
+  "salir":            { es: "Salir",                  en: "Exit" },
+  "cancelar":         { es: "Cancelar",               en: "Cancel" },
+  "semana":           { es: "Semana",                 en: "Week" },
+  "pregunta":         { es: "Pregunta",               en: "Question" },
+  "preguntas":        { es: "preguntas",              en: "questions" },
+  "practicar":        { es: "Practicar",              en: "Practice" },
+  "ultimo":           { es: "último",                 en: "last" },
+  "verTraduccion":    { es: "Ver en español",         en: "See in Spanish" },
+  "objetivo":         { es: "Objetivo",               en: "Goal" },
+  "ejemplos":         { es: "Ejemplos",               en: "Examples" },
+  "dialogo":          { es: "Diálogo",                en: "Dialogue" },
+  "escuchar":         { es: "Escuchar",               en: "Listen" },
+  "escucharDialogo":  { es: "Escuchar",               en: "Play" },
+  "dialogo.consejo":  { es: "Escúchalo primero sin leer. Luego léelo mientras lo escuchas.", en: "Listen first without reading. Then listen again while reading." },
+
+  // Tipos de día
+  "tipo.completo":    { es: "Completo",               en: "Full" },
+  "tipo.ligero":      { es: "Ligero",                 en: "Light" },
+  "tipo.descanso":    { es: "Descanso",               en: "Rest" },
+
+  // Inicio (datos del día)
+  "inicio.racha":     { es: "días de racha",          en: "day streak" },
+  "inicio.progresoHoy": { es: "{n} de {total} pasos hechos", en: "{n} of {total} steps done" },
+  "inicio.hecho":     { es: "¡Sesión de hoy completada! ✓", en: "Today's session done! ✓" },
+  "inicio.minHoy":    { es: "min hoy",                en: "min today" },
+  "inicio.repasos":   { es: "repasos pendientes",     en: "reviews due" },
+
+  // Sesión del día
+  "paso":             { es: "Paso",                   en: "Step" },
+  "paso.warmup":      { es: "Repaso espaciado",       en: "Spaced review" },
+  "paso.leccion":     { es: "Lección",                en: "Lesson" },
+  "paso.vocab":       { es: "Vocabulario en contexto", en: "Vocabulary in context" },
+  "paso.quiz":        { es: "Quiz rápido",            en: "Quick quiz" },
+  "paso.speaking":    { es: "Speaking challenge",     en: "Speaking challenge" },
+  "paso.shadowing":   { es: "Shadowing",              en: "Shadowing" },
+  "hoy.tarjetas":     { es: "{n} tarjetas",           en: "{n} cards" },
+  "hoy.reforzamos":   { es: "Hoy reforzamos",         en: "Today we reinforce" },
+  "hoy.sinLecciones": { es: "Terminaste todas las lecciones disponibles. Agrega contenido nuevo (Fase 5) — mientras tanto, la sesión repasa tus debilidades.", en: "You finished all available lessons. Add new content (Phase 5) — meanwhile, the session reviews your weak points." },
+  "hoy.sinRepasos":   { es: "No tienes tarjetas pendientes hoy. ¡Bien! Pasemos a la lección.", en: "No cards due today. Nice! Let's go to the lesson." },
+  "hoy.sinFrases":    { es: "Aún no hay frases para shadowing. Completa tu primera lección.", en: "No shadowing phrases yet. Complete your first lesson." },
+  "hoy.descansoTexto": { es: "Descansar también es parte de aprender: tu cerebro consolida lo que practicaste. La racha no se rompe.", en: "Resting is part of learning: your brain consolidates what you practiced. Your streak is safe." },
+  "hoy.estudiarIgual": { es: "Quiero estudiar de todos modos", en: "I want to study anyway" },
+  "final.titulo":     { es: "¡Sesión completada!",    en: "Session complete!" },
+  "final.racha":      { es: "Racha actual: {n}",      en: "Current streak: {n}" },
+  "final.bloques":    { es: "Bloques opcionales (+10 min)", en: "Optional blocks (+10 min)" },
+  "final.consejoFluidez": { es: "Te costó hablar sin pausas. Es normal: repite el shadowing de hoy una vez más antes de dormir.", en: "Speaking without pauses was hard today. That's normal: shadow today's phrases once more before bed." },
+  "final.consejoExpresiones": { es: "No usaste todas las expresiones objetivo. Intenta usarlas mañana en una conversación real.", en: "You didn't use all the target expressions. Try using them tomorrow in a real conversation." },
+  "bloque.shadowing": { es: "Shadowing profundo",     en: "Deep shadowing" },
+  "bloque.reto":      { es: "Reto en pareja",         en: "Couple challenge" },
+  "bloque.video":     { es: "Video largo",            en: "Long video" },
+
+  // Quiz
+  "verdadero":        { es: "Verdadero",              en: "True" },
+  "falso":            { es: "Falso",                  en: "False" },
+  "escribeAqui":      { es: "Escribe aquí…",          en: "Type here…" },
+  "refuerzo":         { es: "refuerzo",               en: "reinforcement" },
+  "correctas":        { es: "correctas",              en: "correct" },
+  "correccionesImportantes": { es: "Correcciones importantes", en: "Key corrections" },
+  "todoBien":         { es: "¡Todo correcto!",        en: "All correct!" },
+  "quiz.debilidades": { es: "Tus puntos débiles",     en: "Your weak points" },
+  "quiz.sinDebilidades": { es: "Todavía no hay suficientes datos. Aparecerán cuando hagas más quizzes.", en: "Not enough data yet. They'll show up as you do more quizzes." },
+  "quiz.practicarDebilidades": { es: "Practicar mis debilidades ({n})", en: "Practice my weak points ({n})" },
+  "quiz.porLeccion":  { es: "Quizzes de tus lecciones", en: "Quizzes from your lessons" },
+  "quiz.vacio":       { es: "Aún no hay lecciones.",  en: "No lessons yet." },
+  "volverQuizzes":    { es: "Volver a quizzes",       en: "Back to quizzes" },
+
+  // Tarjetas (SRS)
+  "quedan":           { es: "Quedan {n}",             en: "{n} left" },
+  "mostrarRespuesta": { es: "Mostrar respuesta",      en: "Show answer" },
+  "srs.otra":         { es: "Otra vez",               en: "Again" },
+  "srs.dificil":      { es: "Difícil",                en: "Hard" },
+  "srs.bien":         { es: "Bien",                   en: "Good" },
+  "srs.facil":        { es: "Fácil",                  en: "Easy" },
+  "srs.estado.nuevo": { es: "Nueva",                  en: "New" },
+  "srs.estado.aprendiendo": { es: "Aprendiendo",      en: "Learning" },
+  "srs.estado.repaso": { es: "En repaso",             en: "Reviewing" },
+  "srs.estado.dominada": { es: "Dominada",            en: "Mastered" },
+  "srs.filtro.todas": { es: "Todas",                  en: "All" },
+  "srs.filtro.aprendiendo": { es: "Aprendiendo",      en: "Learning" },
+  "srs.filtro.repaso": { es: "En repaso",             en: "Reviewing" },
+  "srs.filtro.dominada": { es: "Dominadas",           en: "Mastered" },
+  "vocab.instruccion": { es: "Escucha cada palabra y su ejemplo, y repítelos en voz alta. Mañana empezarán tus repasos.", en: "Listen to each word and example, and repeat them out loud. Your reviews start tomorrow." },
+  "vocab.listo":      { es: "Listo, agregar a mis repasos", en: "Done, add to my reviews" },
+  "vocab.hoy":        { es: "hoy",                    en: "today" },
+  "vocab.enDias":     { es: "en {n} d",               en: "in {n}d" },
+  "vocab.total":      { es: "palabras",               en: "words" },
+  "vocab.pendientes": { es: "para hoy",               en: "due today" },
+  "vocab.dominadas":  { es: "dominadas",              en: "mastered" },
+  "vocab.repasarAhora": { es: "Repasar ahora ({n})",  en: "Review now ({n})" },
+  "vocab.nadaHoy":    { es: "Nada que repasar hoy ✓", en: "Nothing to review today ✓" },
+  "vocab.vacio":      { es: "Tus palabras aparecerán aquí cuando completes el paso de vocabulario de una lección.", en: "Your words will appear here after the vocabulary step of a lesson." },
+  "vocab.explicacionSRS": { es: "Repetición espaciada (SM-2): cada palabra vuelve justo antes de que la olvides. Si te cuesta, vuelve pronto; si es fácil, se espacia más. Una palabra está dominada cuando su próximo repaso es en 21 días o más.", en: "Spaced repetition (SM-2): each word comes back right before you'd forget it. Hard words return soon; easy ones get spaced out. A word is mastered when its next review is 21+ days away." },
+
+  // Speaking / shadowing
+  "sinGrabacion":     { es: "Este navegador no permite grabar. Puedes practicar en voz alta sin grabación.", en: "This browser can't record. You can still practice out loud without recording." },
+  "grabar":           { es: "Grabar",                 en: "Record" },
+  "grabarOtraVez":    { es: "Grabar otra vez",        en: "Record again" },
+  "detener":          { es: "Detener",                en: "Stop" },
+  "micBloqueado":     { es: "No se pudo usar el micrófono. Revisa los permisos del navegador.", en: "Couldn't access the microphone. Check browser permissions." },
+  "lento":            { es: "Lento",                  en: "Slow" },
+  "comparar":         { es: "Comparar (modelo → tú)", en: "Compare (model → you)" },
+  "shadowing.pasos":  { es: "1) Escucha  2) Grábate imitando el ritmo y la entonación  3) Compara", en: "1) Listen  2) Record yourself copying the rhythm and intonation  3) Compare" },
+  "shadowing.comoTeSalio": { es: "¿Cómo te salió?",   en: "How did it go?" },
+  "nota1":            { es: "Me costó",               en: "Hard" },
+  "nota2":            { es: "Bien",                   en: "OK" },
+  "nota3":            { es: "¡Muy bien!",             en: "Great!" },
+  "intentaUsar":      { es: "Intenta usar",           en: "Try to use" },
+  "speaking.consejo": { es: "Habla hasta {seg} s. No te detengas a corregirte: lo importante es seguir hablando.", en: "Speak for up to {seg}s. Don't stop to correct yourself — keep talking." },
+  "speaking.intro":   { es: "Practica los retos de tus lecciones. Tus grabaciones se guardan solo en este dispositivo.", en: "Practice the challenges from your lessons. Recordings stay on this device only." },
+  "speaking.bien":    { es: "¡Buen trabajo! Escucha tus grabaciones mañana: notarás el avance.", en: "Great job! Listen to your recordings tomorrow — you'll notice progress." },
+  "speaking.shadowHecho": { es: "Practicaste {n} frases.", en: "You practiced {n} phrases." },
+  "rubrica.titulo":   { es: "Autoevaluación",         en: "Self-assessment" },
+  "rubrica.fluidez":  { es: "¿Qué tan fluido hablaste?", en: "How fluent were you?" },
+  "rubrica.f1":       { es: "Muchas pausas largas",   en: "Many long pauses" },
+  "rubrica.f2":       { es: "Algunas pausas",         en: "Some pauses" },
+  "rubrica.f3":       { es: "Casi sin pausas",        en: "Almost no pauses" },
+  "rubrica.respondio": { es: "Respondí todas las preguntas", en: "I answered every question" },
+  "rubrica.expresiones": { es: "¿Qué expresiones usaste?", en: "Which expressions did you use?" },
+
+  // Calendario
+  "cal.racha":        { es: "racha",                  en: "streak" },
+  "cal.mejor":        { es: "mejor racha",            en: "best streak" },
+  "cal.comodin":      { es: "comodín del mes",        en: "monthly freeze" },
+  "cal.minSemana":    { es: "Esta semana: {n} min de estudio", en: "This week: {n} min studied" },
+  "cal.estudiado":    { es: "estudiado",              en: "studied" },
+  "cal.tocaParaMover": { es: "Toca hoy o un día futuro para moverlo (ej. cambiar tu descanso).", en: "Tap today or a future day to move it (e.g. swap your rest day)." },
+  "cal.aviso":        { es: "Esta semana ya no es 5 + 1 + 1. Está bien de vez en cuando; intenta mantener 5 días completos.", en: "This week is no longer 5 + 1 + 1. That's OK sometimes; try to keep 5 full days." },
+  "cal.patron":       { es: "Tu semana normal",       en: "Your usual week" },
+  "cal.diaLigero":    { es: "Día ligero (5–10 min)",  en: "Light day (5–10 min)" },
+  "cal.diaDescanso":  { es: "Día de descanso",        en: "Rest day" },
+  "cal.mismoDia":     { es: "El día ligero y el de descanso deben ser distintos.", en: "Light day and rest day must be different." },
+  "cal.automatico":   { es: "Volver al patrón normal", en: "Back to usual pattern" },
+
+  // Ruta
+  "ruta.progreso":    { es: "{n} de {total} lecciones completadas", en: "{n} of {total} lessons completed" },
+  "ruta.repasar":     { es: "toca para repasar",      en: "tap to review" },
+  "ruta.siguiente":   { es: "siguiente",              en: "up next" },
+  "ruta.masContenido": { es: "Las semanas 2–4 llegan en la Fase 5, y luego podrás agregar más con el importador.", en: "Weeks 2–4 arrive in Phase 5; after that you can add more with the importer." },
 };

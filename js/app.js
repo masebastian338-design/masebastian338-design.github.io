@@ -18,6 +18,15 @@ import * as pInicio from "./paginas/inicio.js";
 import * as pPerfil from "./paginas/perfil.js";
 import * as pPareja from "./paginas/pareja.js";
 import * as pMas from "./paginas/mas.js";
+import * as pHoy from "./paginas/hoy.js";
+import * as pVocabulario from "./paginas/vocabulario.js";
+import * as pQuizzes from "./paginas/quizzes.js";
+import * as pSpeaking from "./paginas/speaking.js";
+import * as pCalendario from "./paginas/calendario.js";
+import * as pRuta from "./paginas/ruta.js";
+import { hablar } from "./ui/voz.js";
+import { sumarSegundos } from "./datos/progreso.js";
+import { borrarDatosDemo } from "./datos/almacen.js";
 
 const raiz = document.getElementById("app");
 
@@ -30,6 +39,12 @@ const PAGINAS = {
   perfil: pPerfil,
   pareja: pPareja,
   mas: pMas,
+  hoy: pHoy,
+  vocabulario: pVocabulario,
+  quizzes: pQuizzes,
+  speaking: pSpeaking,
+  calendario: pCalendario,
+  ruta: pRuta,
 };
 
 // Barra inferior: las 5 secciones principales
@@ -125,6 +140,7 @@ async function entrarALaApp(usuario, acceso) {
 async function salir() {
   if (datos.esDemo()) {
     datos.salirDemo();
+    borrarDatosDemo();
     estado.perfil = null;
     location.hash = "";
     pantallaDemo();
@@ -161,7 +177,39 @@ async function dibujarPagina() {
   if (pagina?.montar) await pagina.montar(raiz, estado, { salir });
 }
 
-window.addEventListener("hashchange", dibujarPagina);
+window.addEventListener("hashchange", () => { volcarTiempo(); speechSynthesis?.cancel?.(); dibujarPagina(); });
+
+// Cualquier botón con data-oir="texto" lee ese texto en voz alta
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-oir]");
+  if (b && estado.perfil) hablar(b.dataset.oir, estado.perfil.ajustes);
+});
+
+// ---------------------------------------------------------
+// TIEMPO REAL DE ESTUDIO
+// Cuenta segundos solo si: estás en una sección de estudio, la app
+// está visible y tocaste/escribiste algo en los últimos 2 minutos
+// (así no cuenta si dejas el celular abierto). Se guarda cada minuto.
+// ---------------------------------------------------------
+const RUTAS_ESTUDIO = new Set(["hoy", "vocabulario", "quizzes", "speaking", "ruta"]);
+let ultimaActividad = Date.now();
+let segundosPendientes = 0;
+for (const ev of ["pointerdown", "keydown", "touchstart", "scroll"]) {
+  window.addEventListener(ev, () => { ultimaActividad = Date.now(); }, { passive: true });
+}
+setInterval(() => {
+  const activo = estado.perfil && document.visibilityState === "visible"
+    && RUTAS_ESTUDIO.has(rutaActual()) && Date.now() - ultimaActividad < 120000;
+  if (activo) segundosPendientes += 5;
+}, 5000);
+function volcarTiempo() {
+  if (!estado.perfil || segundosPendientes < 5) return;
+  const s = segundosPendientes;
+  segundosPendientes = 0;
+  sumarSegundos(estado.perfil.uid, s).catch(() => { segundosPendientes += s; });
+}
+setInterval(volcarTiempo, 60000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") volcarTiempo(); });
 
 // Aviso de "sin conexión"
 for (const ev of ["online", "offline"]) {
@@ -180,7 +228,9 @@ async function arrancar() {
     navigator.serviceWorker.register("service-worker.js").catch(e => console.warn("SW:", e));
   }
 
-  if (!configurado) {
+  // Modo demo: sin configuración, o abriendo la web con ?demo al final
+  // (ej. https://…github.io/?demo) para probar sin tocar los datos reales.
+  if (!configurado || new URLSearchParams(location.search).has("demo")) {
     datos.usarModoDemo();
     // Si ya había una demo abierta, entra directo (al recargar no vuelve a preguntar)
     const rol = datos.demoGuardada();
