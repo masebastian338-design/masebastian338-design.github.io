@@ -1,0 +1,7 @@
+{
+  "comentario": "Lista de archivos de contenido base que carga la web. Si agregas un archivo nuevo en esta carpeta, añádelo aquí.",
+  "archivos": [
+    "ruta-B/semana-1.json",
+    "ruta-A/semana-1.json"
+  ]
+}

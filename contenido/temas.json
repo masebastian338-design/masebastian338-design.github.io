@@ -1,0 +1,6 @@
+[
+  { "id": "presentaciones", "nombre": "Introductions & everyday life", "nombreES": "Presentaciones y vida diaria", "icono": "👋" },
+  { "id": "viajes", "nombre": "Travel", "nombreES": "Viajes", "icono": "✈️" },
+  { "id": "comida", "nombre": "Food & restaurants", "nombreES": "Comida y restaurantes", "icono": "🍽️" },
+  { "id": "salud", "nombre": "Health & medicine", "nombreES": "Salud y medicina", "icono": "🩺" }
+]
